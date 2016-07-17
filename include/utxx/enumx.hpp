@@ -88,6 +88,15 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 /// MyEnumT val = MyEnumT::from_string("Pear");
 /// std::cout << "Value: " << to_string(val) << std::endl;
 /// std::cout << "Value: " << val            << std::endl;
+///
+/// For iterating over all enum members, use `for_each(Visitor)`, where
+/// `Visitor` is the functor:
+///   `(int numeric_order, std::tuple<MyEnumT, string, string> const&) -> bool`.
+/// For each member the tuple contains:
+///   `{MemberValue, MemberNameString, MemberValueString}`
+/// * `MemberNameString`  is the symbolic name of the member (e.g. "Apple")
+/// * `MemberValueString` is optional value of the member (e.g. "Fuji"), which
+///   defaults to `MemberValueString`
 //------------------------------------------------------------------------------
 #define UTXX_ENUMX(ENUM, TYPE, UndefValue, ...)                                \
     struct ENUM {                                                              \
