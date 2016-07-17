@@ -47,9 +47,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <boost/preprocessor/tuple/size.hpp>
 #include <boost/preprocessor/tuple/push_back.hpp>
 #include <boost/preprocessor/stringize.hpp>
+#include <boost/preprocessor/arithmetic/inc.hpp>
 #include <utxx/string.hpp>
 #include <cassert>
-#include <map>
+#include <tuple>
+#include <array>
 
 #ifdef UTXX_ENUM_SUPPORT_SERIALIZATION
 # ifndef UTXX__ENUM_FRIEND_SERIALIZATION__
@@ -98,6 +100,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
                 BOOST_PP_VARIADIC_SEQ_TO_SEQ(__VA_ARGS__)))                    \
         };                                                                     \
                                                                                \
+        using meta_type  = std::tuple<type, std::string, std::string>;         \
+                                                                               \
         explicit  ENUM(long v) noexcept : m_val(type(v))   {}                  \
         constexpr ENUM()       noexcept : m_val(UNDEFINED) {}                  \
         constexpr ENUM(type v) noexcept : m_val(v)         {}                  \
@@ -116,8 +120,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
         static    constexpr bool is_enum()   { return true;                }   \
         static    constexpr bool is_flags()  { return false;               }   \
                                                                                \
-        const std::string& name()    const { return meta(m_val).first;     }   \
-        const std::string& value()   const { return meta(m_val).second;    }   \
+        const std::string& name()    const { return std::get<1>(meta(m_val));} \
+        const std::string& value()   const { return std::get<2>(meta(m_val));} \
         TYPE               code()    const { return TYPE(m_val);           }   \
                                                                                \
         const std::string& to_string() const { return value();             }   \
@@ -130,8 +134,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
         from_string(const char* a, bool a_nocase=false, bool as_name=false)  { \
             auto f = a_nocase ? &strcasecmp : &strcmp;                         \
             for (auto& t : metas())                                            \
-                if (!f((as_name ? t.second.first : t.second.second).c_str(),a))\
-                    return ENUM(t.first);                                      \
+                if (!f((as_name ? std::get<1>(t) : std::get<2>(t)).c_str(),a)) \
+                    return ENUM(std::get<0>(t));                               \
             return ENUM(UNDEFINED);                                            \
         }                                                                      \
                                                                                \
@@ -168,37 +172,38 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
                                                                                \
         template <typename Visitor>                                            \
         static void for_each(const Visitor& a_fun) {                           \
-            for (auto it = ++metas().begin(), e = metas().end(); it!=e; ++it)  \
-                if (!a_fun(it->first, it->second))                             \
+            int i=0;                                                           \
+            for (auto m : metas())                                             \
+                if (i++ && !a_fun(i, m))                                       \
                     break;                                                     \
         }                                                                      \
                                                                                \
     private:                                                                   \
-        static const std::pair<const type,std::pair<std::string,std::string>>& \
-        null_pair() {                                                          \
-            static const                                                       \
-            std::pair<const type, std::pair<std::string,std::string>> s_val =  \
-                std::make_pair                                                 \
-                    (UNDEFINED, std::make_pair("UNDEFINED", "UNDEFINED"));     \
+        static const meta_type& null_meta() {                                  \
+            static const meta_type s_val =                                     \
+                std::make_tuple(UNDEFINED, "UNDEFINED", "UNDEFINED");          \
             return s_val;                                                      \
         }                                                                      \
         static const size_t s_size =                                           \
             1+BOOST_PP_SEQ_SIZE(BOOST_PP_VARIADIC_SEQ_TO_SEQ(__VA_ARGS__));    \
-        static const std::map<type, std::pair<std::string,std::string>>&       \
-        metas() {                                                              \
-            static const std::map<type, std::pair<std::string,std::string>>    \
-            s_metas{{                                                          \
-                null_pair(),                                                   \
+        static const std::array<meta_type, s_size>& metas() {                  \
+            static const std::array<meta_type, s_size> s_metas{{               \
+                null_meta(),                                                   \
                 BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(                      \
-                    UTXX_INTERNAL_ENUMX_PAIR, _,                               \
+                    UTXX_INTERNAL_ENUMX_META_TUPLE, _,                         \
                     BOOST_PP_VARIADIC_SEQ_TO_SEQ(__VA_ARGS__)))                \
             }};                                                                \
             return s_metas;                                                    \
         }                                                                      \
                                                                                \
-        static const std::pair<std::string,std::string>& meta(type n) {        \
-            auto it = metas().find(n);                                         \
-            return (it == metas().end() ? null_pair() : *it).second;           \
+        static const meta_type& meta(type n) {                                 \
+            switch (n) {                                                       \
+                case UNDEFINED: return metas()[0];                             \
+                BOOST_PP_SEQ_FOR_EACH_I_R(1,                                   \
+                    UTXX_INTERNAL_ENUMX_CASE, _,                               \
+                    BOOST_PP_VARIADIC_SEQ_TO_SEQ(__VA_ARGS__))                 \
+                default:        return metas()[0];                             \
+            }                                                                  \
         }                                                                      \
                                                                                \
         UTXX__ENUM_FRIEND_SERIALIZATION__;                                     \
@@ -316,15 +321,17 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
         = BOOST_PP_TUPLE_ELEM(1, val),                                         \
         BOOST_PP_EMPTY())
 
-#define UTXX_INTERNAL_ENUMX_PAIR(x, _, val)                                    \
-    std::make_pair(                                                            \
+#define UTXX_INTERNAL_ENUMX_META_TUPLE(x, _, val)                              \
+    std::make_tuple(                                                           \
         BOOST_PP_TUPLE_ELEM(0, val),                                           \
-        std::make_pair(                                                        \
-            BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(0, val)),                   \
-            BOOST_PP_IIF(                                                      \
-                BOOST_PP_GREATER(BOOST_PP_TUPLE_SIZE(val), 2),                 \
-                BOOST_PP_TUPLE_ELEM(2, BOOST_PP_TUPLE_PUSH_BACK(val,_)),       \
-                BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(0, val)))))
+        BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(0, val)),                       \
+        BOOST_PP_IIF(                                                          \
+            BOOST_PP_GREATER(BOOST_PP_TUPLE_SIZE(val), 2),                     \
+            BOOST_PP_TUPLE_ELEM(2, BOOST_PP_TUPLE_PUSH_BACK(val,_)),           \
+            BOOST_PP_STRINGIZE(BOOST_PP_TUPLE_ELEM(0, val))))
+
+#define UTXX_INTERNAL_ENUMX_CASE(x, _, i, item)                                \
+            case BOOST_PP_TUPLE_ELEM(0, item): return metas()[BOOST_PP_INC(i)];
 
 #define UTXX_INTERNAL_ENUM_PAIR(x, _, val)                                     \
     {std::make_pair(BOOST_PP_TUPLE_ELEM(0, val),                               \

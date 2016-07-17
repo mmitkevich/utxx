@@ -109,6 +109,11 @@ BOOST_AUTO_TEST_CASE( test_enum )
 
     BOOST_CHECK(v.empty());
 
+    {
+        mm_enum v1(2);
+        BOOST_CHECK_EQUAL(mm_enum::B, v1.code());
+    }
+
     BOOST_CHECK_EQUAL(0,               (int)mm_enum::UNDEFINED);
     BOOST_CHECK_EQUAL(mm_enum::UNDEFINED,   mm_enum(0));
     BOOST_CHECK_EQUAL(mm_enum::A,           mm_enum(1));
@@ -249,8 +254,9 @@ BOOST_AUTO_TEST_CASE( test_enumx )
     {
         // Iterate over all enum values defined in mm_enum type:
         std::stringstream s;
-        mm_enumx::for_each([&s](mm_enumx::type e, auto& name_pair) {
-            s << e;
+        mm_enumx::for_each([&s](int i, typename mm_enumx::meta_type const& meta) {
+            // meta: {EnumValue, NameStr, ValueStr}
+            s << std::get<2>(meta);
             return true;
         });
         BOOST_CHECK_EQUAL("AAABBCCC", s.str());
@@ -258,8 +264,9 @@ BOOST_AUTO_TEST_CASE( test_enumx )
         s.str("");
         s.clear();
 
-        mm_enumx::for_each([&s](mm_enumx::type e, auto& name_pair) {
-            s << name_pair.first;
+        mm_enumx::for_each([&s](int i, auto& meta) {
+            BOOST_CHECK(i > 0);
+            s << std::get<1>(meta);
             return true;
         });
         BOOST_CHECK_EQUAL("ABBCCC", s.str());
@@ -267,8 +274,9 @@ BOOST_AUTO_TEST_CASE( test_enumx )
         s.str("");
         s.clear();
 
-        mm_enumx::for_each([&s](mm_enumx::type e, auto& name_pair) {
-            s << name_pair.second;
+        mm_enumx::for_each([&s](int i, auto& meta) {
+            BOOST_CHECK(i > 0);
+            s << std::get<2>(meta);
             return true;
         });
         BOOST_CHECK_EQUAL("AAABBCCC", s.str());
