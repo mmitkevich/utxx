@@ -116,6 +116,6 @@ add_executable(example_delegate example_delegate.cpp)
 target_link_libraries(example_delegate utxx boost_timer boost_chrono rt)
 
 install(
-  TARGETS fast_read example_repeating_timer example_delegate
+  TARGETS example_repeating_timer example_delegate #fast_read
   RUNTIME DESTINATION test
 )
