@@ -107,7 +107,7 @@ target_link_libraries(
 
 install(TARGETS test_utxx RUNTIME DESTINATION test)
 
-add_executable(fast_read example_fast_read.cpp)
+#add_executable(fast_read example_fast_read.cpp)
 
 add_executable(example_repeating_timer example_repeating_timer.cpp)
 target_link_libraries(example_repeating_timer utxx ${Boost_LIBRARIES} boost_timer boost_chrono rt)
